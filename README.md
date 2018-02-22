@@ -2,6 +2,8 @@
 
 This is a dynamically generated .ics calendar that you can host and subscribe to in Google Calendar, iCal, or other calendar software.
 
+Not only will it provide an event each day with the appropriate sunrise and sunset time, it will show the length of the day in hours/minutes as well as in a percent (of 24 hours) and the solar noon for that day. It will also give a percentile compared to the shortest and longest days of the year!
+
 ## Options
 
 - [Find your geo coordinates](http://mygeoposition.com/)
