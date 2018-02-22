@@ -14,7 +14,6 @@ This is a dynamically generated .ics calendar that you can host and subscribe to
     - _The point at which the horizon stops being visible at sea_
   - Astronomical Twilight: `108`
     - _The point when Sun stops being a source of any illumination_
-- You can also change the year
     
 ## Instructions
 
@@ -25,6 +24,8 @@ This is a dynamically generated .ics calendar that you can host and subscribe to
   - GMT: `gmt`
   - Zenith: `z`
   - Year: `year`
+
+Use `?debug` to directly view the calendar file in a browser with events more easily readable. Be sure not to use `?debug` when subscribing to your calendar as it does not declare itself as an .ics file with that parameter present.
 
 ## Examples
 
