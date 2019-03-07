@@ -6,6 +6,7 @@
 	My favorite time of day is 11-14 minutes after sunset (when calculated with zenith 90.83). The beautiful sunset is just finishing up with its deepest colors and streetlights and other man-made lights are on.
 	This is just about (slightly before) halfway between sunset as calculated above and civil sunset (zenith of 96).
 
+	//Google Calendar updates every 12 hours (noticed at 9:30am, 9:30pm, 1:00pm, 2:30am).
 */
 
 $debug = 0; //Enable forced debug mode here
@@ -194,10 +195,11 @@ while (strtotime($date) <= strtotime($year-1 . '-12-31') ) :
 	}
 
 	//Add the weather info to the summary if it matches the date correctly
+	$weather_forecast_summary = ''; //Empty this variable each time
 	if ( !empty($weather_forecast) ){ //If we have weather data
 		$this_weather_day = 'day' . date('Ymd', strtotime($date . '+1 year '));
 		if ( !empty($weather_forecast[$this_weather_day]) ){ //If we have weather data for this specific day
-			$weather_forecast_summary = ' Forecast: ' . $weather_forecast[$this_weather_day]['forecast'] . ', High: ' . $weather_forecast[$this_weather_day]['high'] . ', Low ' . $weather_forecast[$this_weather_day]['low'] . '.';
+			$weather_forecast_summary = ' ' . $weather_forecast[$this_weather_day]['forecast'] . ' (High: ' . $weather_forecast[$this_weather_day]['high'] . ', Low ' . $weather_forecast[$this_weather_day]['low'] . ')';
 		}
 	}
 
@@ -240,13 +242,13 @@ UID:<?php echo md5(uniqid(mt_rand(), true)) . "@gearside.com" . "\r\n"; ?>
 DESCRIPTION:<?php echo escapeString(
 	"Civil: " . date('g:ia', strtotime(date('F j Y g:ia', $sunrise_civil) . ' +' . $dst . ' hours')) . ' to ' . date('g:ia', strtotime(date('F j Y g:ia', $sunset_civil) . ' +' . $dst . ' hours')) . " (There is enough natural sunlight that artificial light may not be required to carry out human activities.) --- " .
 	"Nautical: " . date('g:ia', strtotime(date('F j Y g:ia', $sunrise_nautical) . ' +' . $dst . ' hours')) . ' to ' . date('g:ia', strtotime(date('F j Y g:ia', $sunset_nautical) . ' +' . $dst . ' hours')) . " (The point at which the horizon stops being visible at sea) --- " .
-	"Astronomical: " . date('g:ia', strtotime(date('F j Y g:ia', $sunrise_astronomical) . ' +' . $dst . ' hours')) . ' to ' . date('g:ia', strtotime(date('F j Y g:ia', $sunset_astronomical) . ' +' . $dst . ' hours')) . " (The point when Sun stops being a source of any illumination) --- " . ' [Last Updated: ' . date('l, F j, Y g:ia') . ']' .
+	"Astronomical: " . date('g:ia', strtotime(date('F j Y g:ia', $sunrise_astronomical) . ' +' . $dst . ' hours')) . ' to ' . date('g:ia', strtotime(date('F j Y g:ia', $sunset_astronomical) . ' +' . $dst . ' hours')) . " (The point when Sun stops being a source of any illumination) --- " . ' [Last Updated: ' . date('l, F j, Y g:ia') . '] ' .
 	"Calendar by Gearside.com") . "\r\n"; //This is for additional information ?>
 <?php else : ?>
 DESCRIPTION:<?php echo escapeString('Daylight calendar by Gearside.com') . "\r\n"; //This is for additional information ?>
 <?php endif; ?>
 URL;VALUE=URI:<?php echo escapeString('http://gearside.com/calendars/daylight.ics') . "\r\n"; ?>
-SUMMARY:<?php echo escapeString($hours . 'h ' . $minutes . 'm (' . round($percent, 1) . '%) of daylight [' . $length_percentile . ' percentile]. Solar noon at ' . date('g:ia', $solar_noon) . '.' . $weather_forecast_summary . $last_sync) . "\r\n"; //Shows up in the title of the event ?>
+SUMMARY:<?php echo escapeString($hours . 'h ' . $minutes . 'm (' . round($percent, 1) . '%) [' . $length_percentile . ' Percentile]. Solar noon: ' . date('g:ia', $solar_noon) . '. ' . $weather_forecast_summary . $last_sync) . "\r\n"; //Shows up in the title of the event ?>
 RRULE:FREQ=YEARLY;COUNT=3<?php echo "\r\n"; ?>
 END:VEVENT<?php echo "\r\n"; ?>
 <?php
