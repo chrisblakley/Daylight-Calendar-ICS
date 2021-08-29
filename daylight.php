@@ -156,8 +156,8 @@ CALSCALE:GREGORIAN<?php echo "\r\n"; ?>
 METHOD:PUBLISH<?php echo "\r\n"; ?>
 X-WR-CALNAME:Gearside - Daylight<?php echo "\r\n"; ?>
 <?php
-$date = $year-1 . '-01-01'; //Subtract one year so it can carry over at the end of the year/beginning of the year.
-while (strtotime($date) <= strtotime($year-1 . '-12-31') ) :
+$date = $year-1 . '-01-01'; //Subtract one year so it can carry over at the end of the year/beginning of the year (this messes up leap years, so refer to conditional at the very bottom).
+while ( strtotime($date) <= strtotime($year-1 . '-12-31') || strtotime($date) == strtotime($year . '-02-29') ): //The or statement is just for leap days
 	$sunrise = strtotime($date . '+1 year ' . date_sunrise(strtotime($date), SUNFUNCS_RET_STRING, $lat, $lng, $zenith, $gmt));
 	$sunset = strtotime($date . '+1 year ' . date_sunset(strtotime($date), SUNFUNCS_RET_STRING, $lat, $lng, $zenith, $gmt));
 
@@ -194,11 +194,31 @@ while (strtotime($date) <= strtotime($year-1 . '-12-31') ) :
 		$length_percentile = round((($length-$shortest_length)*100)/($longest_length-$shortest_length), 1);
 	}
 
+	$emoji_icon = ''; //Default emoji icon
+
 	//Add the weather info to the summary if it matches the date correctly
 	$weather_forecast_summary = ''; //Empty this variable each time
 	if ( !empty($weather_forecast) ){ //If we have weather data
 		$this_weather_day = 'day' . date('Ymd', strtotime($date . '+1 year '));
 		if ( !empty($weather_forecast[$this_weather_day]) ){ //If we have weather data for this specific day
+
+			//Determine emoji icon based on forecast summary
+			//https://emojipedia.org/search/?q=weather
+			$today_forecast = strtolower($weather_forecast[$this_weather_day]['forecast']);
+			if ( strpos($today_forecast, 'mostly') !== false || strpos($today_forecast, 'partly') !== false ){
+				$emoji_icon = '⛅';
+			} elseif ( strpos($today_forecast, 'cloudy') !== false || strpos($today_forecast, 'fog') !== false ){
+				$emoji_icon = '☁️';
+			} elseif ( strpos($today_forecast, 'sunny') !== false ){
+				$emoji_icon = '☀️';
+			} elseif ( strpos($today_forecast, 'snow') !== false ){
+				$emoji_icon = '❄️';
+			} elseif ( strpos($today_forecast, 'rain') !== false || strpos($today_forecast, 'shower') !== false ){
+				$emoji_icon = '🌧️';
+			} elseif ( strpos($today_forecast, 'storm') !== false ){
+				$emoji_icon = '⛈️';
+			}
+
 			$weather_forecast_summary = ' ' . $weather_forecast[$this_weather_day]['forecast'] . ' (High: ' . $weather_forecast[$this_weather_day]['high'] . ', Low ' . $weather_forecast[$this_weather_day]['low'] . ')';
 		}
 	}
@@ -242,17 +262,23 @@ UID:<?php echo md5(uniqid(mt_rand(), true)) . "@gearside.com" . "\r\n"; ?>
 DESCRIPTION:<?php echo escapeString(
 	"Civil: " . date('g:ia', strtotime(date('F j Y g:ia', $sunrise_civil) . ' +' . $dst . ' hours')) . ' to ' . date('g:ia', strtotime(date('F j Y g:ia', $sunset_civil) . ' +' . $dst . ' hours')) . " (There is enough natural sunlight that artificial light may not be required to carry out human activities.) --- " .
 	"Nautical: " . date('g:ia', strtotime(date('F j Y g:ia', $sunrise_nautical) . ' +' . $dst . ' hours')) . ' to ' . date('g:ia', strtotime(date('F j Y g:ia', $sunset_nautical) . ' +' . $dst . ' hours')) . " (The point at which the horizon stops being visible at sea) --- " .
-	"Astronomical: " . date('g:ia', strtotime(date('F j Y g:ia', $sunrise_astronomical) . ' +' . $dst . ' hours')) . ' to ' . date('g:ia', strtotime(date('F j Y g:ia', $sunset_astronomical) . ' +' . $dst . ' hours')) . " (The point when Sun stops being a source of any illumination) --- " . ' [Last Updated: ' . date('l, F j, Y g:ia') . '] ' .
+	"Astronomical: " . date('g:ia', strtotime(date('F j Y g:ia', $sunrise_astronomical) . ' +' . $dst . ' hours')) . ' to ' . date('g:ia', strtotime(date('F j Y g:ia', $sunset_astronomical) . ' +' . $dst . ' hours')) . " (The point when Sun stops being a source of any illumination) --- " . ' [Last Updated: ' . date('l, F j, Y, g:ia') . '] ' .
 	"Calendar by Gearside.com") . "\r\n"; //This is for additional information ?>
 <?php else : ?>
 DESCRIPTION:<?php echo escapeString('Daylight calendar by Gearside.com') . "\r\n"; //This is for additional information ?>
 <?php endif; ?>
 URL;VALUE=URI:<?php echo escapeString('http://gearside.com/calendars/daylight.ics') . "\r\n"; ?>
-SUMMARY:<?php echo escapeString($hours . 'h ' . $minutes . 'm (' . round($percent, 1) . '%) [' . $length_percentile . ' Percentile]. Solar noon: ' . date('g:ia', $solar_noon) . '. ' . $weather_forecast_summary . $last_sync) . "\r\n"; //Shows up in the title of the event ?>
+SUMMARY:<?php echo $emoji_icon . ' ' . escapeString($hours . 'h ' . $minutes . 'm (' . round($percent, 1) . '%) [' . $length_percentile . ' Percentile]. Solar noon: ' . date('g:ia', $solar_noon) . '. ' . $weather_forecast_summary . $last_sync) . "\r\n"; //Shows up in the title of the event ?>
 RRULE:FREQ=YEARLY;COUNT=3<?php echo "\r\n"; ?>
 END:VEVENT<?php echo "\r\n"; ?>
 <?php
-$date = date ("Y-m-d", strtotime("+1 day", strtotime($date)));
+	if ( $date == $year-1 . '-02-28' && date('L', strtotime($year . '-02-29')) ){ //If is Feb 28th and if tomorrow is a leap day
+		$date = date("Y-m-d", strtotime($year . '-02-29')); //Set the year to the current year (rather than the previous year)
+	} elseif ( $date == $year . '-02-29' ){ //If this *is* leap day
+		$date = date("Y-m-d", strtotime($year-1 . '-03-01')); //Set the year back to the previous year on March 1
+	} else {
+		$date = date("Y-m-d", strtotime("+1 day", strtotime($date))); //Increment the date as normal
+	}
 endwhile; ?>
 END:VCALENDAR<?php echo "\r\n"; ?>
 <?php die; ?>
