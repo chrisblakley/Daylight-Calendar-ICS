@@ -19,13 +19,19 @@ Not only will it provide an event each day with the appropriate sunrise and suns
     
 ## Instructions
 
-- Upload `daylight.php` to your server (or skip this step and use the one hosted on [gearside.com](https://gearside.com/calendars/daylight.php))
+- Upload `daylight.php` and/or `sun.php` to your server (or skip this step and use the one hosted on [gearside.com](https://gearside.com/calendars/daylight.php))
 - Point your calendar to the file and use query parameters for the options above.
   - Latitude: `lat`
   - Longitude: `lng`
   - GMT: `gmt`
   - Zenith: `z`
   - Year: `year`
+  - Event types (`sun.php` only):
+    - `actual`
+    - `civil`
+    - `nautical`
+    - `astronomical`
+    - `all`
 
 Use `?debug` to directly view the calendar file in a browser with events more easily readable. Be sure not to use `?debug` when subscribing to your calendar as it does not declare itself as an .ics file with that parameter present.
 
@@ -33,6 +39,8 @@ Use `?debug` to directly view the calendar file in a browser with events more ea
 
 #### Basic
 `https://gearside.com/calendars/daylight.php?lat=43.1234&lng=-76.1234&gmt=-5`
+
+`https://gearside.com/calendars/sun.php?lat=43.1234&lng=-76.1234&gmt=-5&all`
 
 #### Advanced
 `https://gearside.com/calendars/daylight.php?lat=43.1234&lng=-76.1234&gmt=-5&z=108`
