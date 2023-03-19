@@ -7,6 +7,7 @@ Not only will it provide an event each day with the appropriate sunrise and suns
 ## Options
 
 - [Find your geo coordinates](http://mygeoposition.com/)
+- [Find your timezone name](https://www.php.net/manual/en/timezones.php)
 - [Find your GMT offset](http://en.wikipedia.org/wiki/List_of_UTC_time_offsets#mediaviewer/File:World_Time_Zones_Map.png)
     
 ## Instructions
@@ -15,8 +16,8 @@ Not only will it provide an event each day with the appropriate sunrise and suns
 - Point your calendar to the file and use query parameters for the options above.
   - Latitude: `lat`
   - Longitude: `lng`
-  - GMT: `gmt`
-  - Timezone: `timezone`
+  - Timezone (preferred way): `timezone`
+  - GMT Offset (alternate way): `gmt`
   - Year: `year`
   - Event types (`sun.php` only):
     - `actual`
