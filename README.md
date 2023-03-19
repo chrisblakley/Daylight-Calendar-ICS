@@ -8,14 +8,6 @@ Not only will it provide an event each day with the appropriate sunrise and suns
 
 - [Find your geo coordinates](http://mygeoposition.com/)
 - [Find your GMT offset](http://en.wikipedia.org/wiki/List_of_UTC_time_offsets#mediaviewer/File:World_Time_Zones_Map.png)
-- Determine which zenith setting you prefer
-  - Default: `90.83`
-  - Civil Twilight: `96`
-    - _Conventionally used to signify twilight_
-  - Nautical Twilight: `102`
-    - _The point at which the horizon stops being visible at sea_
-  - Astronomical Twilight: `108`
-    - _The point when Sun stops being a source of any illumination_
     
 ## Instructions
 
@@ -24,7 +16,7 @@ Not only will it provide an event each day with the appropriate sunrise and suns
   - Latitude: `lat`
   - Longitude: `lng`
   - GMT: `gmt`
-  - Zenith: `z`
+  - Timezone: `timezone`
   - Year: `year`
   - Event types (`sun.php` only):
     - `actual`
@@ -38,12 +30,14 @@ Use `?debug` to directly view the calendar file in a browser with events more ea
 ## Examples
 
 #### Basic
+
+Most reliable method:
+`https://gearside.com/calendars/daylight.php?lat=43.1234&lng=-76.1234&timezone=America/New_York`
+
+Your mileage may vary if only passing GMT offset:
 `https://gearside.com/calendars/daylight.php?lat=43.1234&lng=-76.1234&gmt=-5`
 
 `https://gearside.com/calendars/sun.php?lat=43.1234&lng=-76.1234&gmt=-5&all`
-
-#### Advanced
-`https://gearside.com/calendars/daylight.php?lat=43.1234&lng=-76.1234&gmt=-5&z=108`
 
 ## Notes
 
