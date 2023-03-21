@@ -3,149 +3,171 @@
 	ICS Validator: http://severinghaus.org/projects/icv/
 	Another Validator: http://icalvalid.cloudapp.net/
 
-	My favorite time of day is 11-14 minutes after sunset (when calculated with zenith 90.83). The beautiful sunset is just finishing up with its deepest colors and streetlights and other man-made lights are on.
-	This is just about (slightly before) halfway between sunset as calculated above and civil sunset (zenith of 96).
-
 	//Google Calendar updates every 12 hours (noticed at 9:30am, 9:30pm, 1:00pm, 2:30am).
 */
 
-$debug = 0; //Enable forced debug mode here
+function is_debug(){
+	if ( 1==2 ){ //Use this to force debug mode for everyone
+		return true;
+	}
 
-if ( $debug == 0 && !array_key_exists('debug', $_GET) ){
+	if ( array_key_exists('debug', $_GET) ){ //Test it like this: https://gearside.com/calendars/daylight.php?debug
+		return true;
+	}
+
+	return false;
+}
+
+//Show Errors when debugging
+if ( is_debug() ){
+	ini_set('display_errors', 1);
+	ini_set('display_startup_errors', 1);
+	ini_set('track_errors', 1);
+	ini_set('html_errors', 1);
+	error_reporting(E_ALL);
+}
+
+//Use and ICS file type when not debugging
+if ( !is_debug() ){
 	header('Content-type: text/calendar; charset=utf-8');
 	header('Content-Disposition: attachment; filename=gearside_daylight.ics');
 }
 
-function dateToCal($timestamp) {
-	return date('Ymd\THis\Z', $timestamp); // 'Ymd\THis\Z' for UTC time
+//Use this to add a notice at the top of each calendar item's description
+$global_notice = "";
+//$global_notice = "⚠️ We are working through known issues and improving the accuracy. Apologies for temporary problems.";
+
+//Convert a timestamp integer to a ISO formated UTC timestamp
+function iso_date_format($local_timestamp) {
+	$given = new DateTime(date('Y-m-d H:i:s', $local_timestamp)); //Create the datetime for the local timezone. Use this format: "2014-12-12 14:18:00"
+	$given->setTimezone(new DateTimeZone("UTC")); //Now update the timezone to UTC
+	$utc_timestamp = $given->format('Ymd\THis\Z') . "\n"; //Output the UTC timestamp in ISO standard format
+	return $utc_timestamp;
 }
 
-function escapeString($string) {
+//Escape strings
+function escape_string($string) {
 	return preg_replace('/([\,;])/','\\\$1', $string);
 }
 
 $year = ( isset($_GET['year']) )? intval($_GET['year']) : date('Y');
 $lat = ( isset($_GET['lat']) )? floatval($_GET['lat']) : 43.0469;
 $lng = ( isset($_GET['lng']) )? floatval($_GET['lng']) : -76.1444;
-$gmt = ( isset($_GET['gmt']) )? intval($_GET['gmt']) : -5;
-$gmt_math = ($gmt*3600)*-1;
 
-$syracuse = ( $lat == 43.0469 && $lng == -76.1444 ) ? 1: 0;
-if ( $syracuse ){
-	date_default_timezone_set('America/New_York'); //This is only used for the "Last Updated" date
-}
-
-if ( isset($_GET['z']) ) {
-	if ( is_numeric($_GET['z']) ) {
-		$zenith = intval($_GET['z']);
-	} else {
-		switch ( strtolower($_GET['z']) ) {
-			case ('civil') :
-			case ('civiltwilight') :
-			case ('civil_twilight') :
-			case ('civil%20twilight') :
-			case ('civil-twilight') :
-				$zenith = 96; //Conventionally used to signify twilight
-				break;
-			case ('nautical') :
-			case ('nauticaltwilight') :
-			case ('nautical_twilight') :
-			case ('nautical%20twilight') :
-			case ('nautical-twilight') :
-				$zenith = 102; //The point at which the horizon stops being visible at sea.
-				break;
-			case ('astronomical') :
-			case ('astronomicaltwilight') :
-			case ('astronomical_twilight') :
-			case ('astronomical%20twilight') :
-			case ('astronomical-twilight') :
-				$zenith = 108; //The point when Sun stops being a source of any illumination.
-				break;
-			default :
-				$zenith = 90+50/60; //The official zenith is 90+(50/60) degrees for true sunrise/sunset
-				break;
+$timezone = 'America/New_York'; //Default to American Eastern timezone
+if ( isset($_GET['timezone']) ){ //If a timezone name is provided, use it
+	$timezone = $_GET['timezone'];
+} elseif ( isset($_GET['gmt']) ){ //If a GMT offset is provided, try to find an equivalent timezone
+	$timezone_list = DateTimeZone::listIdentifiers(); //Get the list of all timezones
+	foreach ( $all_timezones as $timezone_to_check ){ //Loop through all of the timezones
+		$tz = new DateTimeZone($timezone_to_check);
+		$offset = $tz->getOffset(new DateTime()); //Get the offset in seconds from UTC for the timezone
+		$offset_hours = $offset/3600; //Convert the offset to hours
+		if ( $offset_hours == intval($_GET['gmt']) ){ //If the offset hours matches the GMT offset, use that timezone
+			$timezone = $timezone_to_check;
+			break; //Exit the loop
 		}
 	}
-} else {
-	$zenith = 90.83; //The official zenith is 90+(50/60) degrees for true sunrise/sunset
+}
+
+date_default_timezone_set($timezone); //Now use the timezone that was determined above
+
+function is_syracuse($lat=false, $lng=false){
+	if ( isset($_GET['syracuse']) ){
+		return true;
+	}
+
+	if ( $lat == 43.0469 && $lng == -76.1444 ){ //Could make this a little more flexible with >= <=
+		return true;
+	}
+
+	return false;
 }
 
 //Shortest Day Length
 $shortest_date = $year . '-12-21';
-$shortest_sunrise = strtotime($shortest_date . ' ' . date_sunrise(strtotime($shortest_date), SUNFUNCS_RET_STRING, $lat, $lng, $zenith, $gmt));
-$shortest_sunset = strtotime($shortest_date . ' ' . date_sunset(strtotime($shortest_date), SUNFUNCS_RET_STRING, $lat, $lng, $zenith, $gmt));
+$shortest_sun_info = date_sun_info(strtotime($shortest_date), $lat, $lng);
+$shortest_sunrise = $shortest_sun_info['sunrise'];
+$shortest_sunset = $shortest_sun_info['sunset'];
 $shortest_length = $shortest_sunset-$shortest_sunrise;
 
 //Longest Day Length
 $longest_date = $year . '-06-21';
-$longest_sunrise = strtotime($longest_date . ' ' . date_sunrise(strtotime($longest_date), SUNFUNCS_RET_STRING, $lat, $lng, $zenith, $gmt));
-$longest_sunset = strtotime($longest_date . ' ' . date_sunset(strtotime($longest_date), SUNFUNCS_RET_STRING, $lat, $lng, $zenith, $gmt));
+$longest_sun_info = date_sun_info(strtotime($longest_date), $lat, $lng);
+$longest_sunrise = $longest_sun_info['sunrise'];
+$longest_sunset = $longest_sun_info['sunset'];
 $longest_length = $longest_sunset-$longest_sunrise;
 
 //Current weather forecast
 $weather_forecast = array();
 $weather_forecast_summary = '';
-if ( $syracuse ){
-	//Weather Forecast Lookup (Yahoo Weather API)
-	function buildBaseString($baseURI, $method, $params){
-		$r = array();
-		ksort($params);
-		foreach( $params as $key => $value ){
-			$r[] = "$key=" . rawurlencode($value);
+if ( is_syracuse($lat, $lng) ){
+	//Weather Forecast
+	$weather_json = file_get_contents('/home/gearside/public_html/weather.gearside.com/v2/data/weather-owm.json');
+	if ( !empty($weather_json) ){
+		$weather_forecast_data = json_decode($weather_json);
+		if ( is_string($weather_forecast_data) ){
+			$weather_forecast_data = json_decode($weather_forecast_data); //Decode it again if it is not yet an array. Dunno why I need to do this but it is necessary.
 		}
-		return $method . "&" . rawurlencode($baseURI) . '&' . rawurlencode(implode('&', $r));
-	}
 
-	function buildAuthorizationHeader($oauth){
-		$r = 'Authorization: OAuth ';
-		$values = array();
-		foreach( $oauth as $key=>$value ){
-			$values[] = "$key=\"" . rawurlencode($value) . "\"";
+		foreach ( $weather_forecast_data->daily as $forecast_day ){
+			$weather_forecast['day' . date('Ymd', $forecast_day->dt)] = array(
+				'date' => $forecast_day->dt, //UTC time
+				'high' => round($forecast_day->temp->max) . '°F',
+				'low' => round($forecast_day->temp->min) . '°F',
+				'feels_like' => round($forecast_day->feels_like->day) . '°F', //Not using this because there is not a "max", and "day" is not equivalent to be accurate
+				'humidity' => round($forecast_day->humidity) . '%', //Percent
+				'wind' => ( $forecast_day->wind_speed > 18 )? round($forecast_day->wind_speed) . 'mph' : '', //Already in MPH from source. Only show if it is high
+				'pop' => round(($forecast_day->pop)*100), //Percent
+				//'pop_type' => '', //This is not explicitly provided. Would need to do the math on  ->rain vs. ->snow
+				'snow_accumulation' => ( !empty($forecast_day->snow) && $forecast_day->snow*0.0393701 > 0.2 )? round($forecast_day->snow*0.0393701, 1) . '"' : '', //Convert millimeters to inches. Only show if more than 1/4"
+				'forecast' => ucwords($forecast_day->weather[0]->main),
+				'description' => ucwords($forecast_day->weather[0]->description),
+				'icon' => get_weather_emoji($forecast_day->weather[0]->main, $forecast_day->weather[0]->description, $forecast_day->temp->max) //Combine the main, summary, and high temperature to figure out the icons
+			);
 		}
-		$r .= implode(', ', $values);
-		return $r;
+	}
+}
+
+//Determine emoji icon based on forecast summary
+//https://emojipedia.org/search/?q=weather
+function get_weather_emoji($main='', $description='', $high=false){
+	$forecast = strtolower($main) .' ' . strtolower($description);
+
+	$emoji_icon = '';
+	if ( strpos($forecast, 'mostly') !== false || strpos($forecast, 'partly') !== false ){
+		$emoji_icon = '⛅';
+	} elseif ( strpos($forecast, 'cloud') !== false || strpos($forecast, 'fog') !== false ){
+		$emoji_icon = '☁️';
+	} elseif ( strpos($forecast, 'sunny') !== false ){
+		$emoji_icon = '☀️';
+	} elseif ( strpos($forecast, 'snow') !== false ){
+		$emoji_icon = '❄️';
+	} elseif ( strpos($forecast, 'rain') !== false || strpos($forecast, 'shower') !== false ){
+		$emoji_icon = '🌧️';
+	} elseif ( strpos($forecast, 'storm') !== false ){
+		$emoji_icon = '⛈️';
+	} elseif ( strpos($forecast, 'wind') !== false ){
+		$emoji_icon = '🌬️';
 	}
 
-	$url = 'https://weather-ydn-yql.media.yahoo.com/forecastrss';
-	$app_id = 'DeJXrq6s';
-	$consumer_key = 'dj0yJmk9TUdkTURIclp5VFB6JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PTU2'; //Client ID
-	$consumer_secret = '624b553e212c750ddfa5212d5442282b2102cd26'; //Client Secret
-	$query = array('location' => 'syracuse,ny', 'format' => 'json');
-
-	$oauth = array(
-		'oauth_consumer_key' => $consumer_key,
-		'oauth_nonce' => uniqid(mt_rand(1, 1000)),
-		'oauth_signature_method' => 'HMAC-SHA1',
-		'oauth_timestamp' => time(),
-		'oauth_version' => '1.0'
-	);
-
-	$base_info = buildBaseString($url, 'GET', array_merge($query, $oauth));
-	$composite_key = rawurlencode($consumer_secret) . '&';
-	$oauth_signature = base64_encode(hash_hmac('sha1', $base_info, $composite_key, true));
-	$oauth['oauth_signature'] = $oauth_signature;
-	$header = array(buildAuthorizationHeader($oauth), 'X-Yahoo-App-Id: ' . $app_id);
-
-	$ch = curl_init();
-	curl_setopt_array($ch, array(
-		CURLOPT_HTTPHEADER => $header,
-		CURLOPT_HEADER => false,
-		CURLOPT_URL => $url . '?' . http_build_query($query),
-		CURLOPT_RETURNTRANSFER => true,
-		CURLOPT_SSL_VERIFYPEER => false
-	));
-	$response = curl_exec($ch);
-	curl_close($ch);
-
-	$weather_forecast_data = json_decode($response);
-	foreach ( $weather_forecast_data->forecasts as $forecast_day ){
-		$weather_forecast['day' . date('Ymd', $forecast_day->date)] = array(
-			'date' => $forecast_day->date, //UTC time
-			'high' => $forecast_day->high . '°F',
-			'low' => $forecast_day->low . '°F',
-			'forecast' => ucwords($forecast_day->text)
-		);
+	if ( !empty($high) ){
+		if ( $high >= 90 ){
+			$emoji_icon .= '🥵';
+		} elseif ( $high >= 75 ){
+			$emoji_icon .= '🔴';
+		} elseif ( $high >= 60 ){
+			$emoji_icon .= '🟠';
+		} elseif ( $high >= 45 ){
+			$emoji_icon .= '🟣';
+		} elseif ( $high >= 32 ){
+			$emoji_icon .= '🔵';
+		} elseif ( $high < 32 ){
+			$emoji_icon .= '🥶';
+		}
 	}
+
+	return $emoji_icon;
 }
 
 ?>
@@ -158,20 +180,22 @@ X-WR-CALNAME:Gearside - Daylight<?php echo "\r\n"; ?>
 <?php
 $date = $year-1 . '-01-01'; //Subtract one year so it can carry over at the end of the year/beginning of the year (this messes up leap years, so refer to conditional at the very bottom).
 while ( strtotime($date) <= strtotime($year-1 . '-12-31') || strtotime($date) == strtotime($year . '-02-29') ): //The or statement is just for leap days
-	$sunrise = strtotime($date . '+1 year ' . date_sunrise(strtotime($date), SUNFUNCS_RET_STRING, $lat, $lng, $zenith, $gmt));
-	$sunset = strtotime($date . '+1 year ' . date_sunset(strtotime($date), SUNFUNCS_RET_STRING, $lat, $lng, $zenith, $gmt));
+	$timestamp = strtotime($date);
+	$next_year_timestamp = strtotime('+1 year', $timestamp);
+	$sun_info = date_sun_info($next_year_timestamp, $lat, $lng);
 
-	if ( $syracuse ) {
-		$sunrise_civil = strtotime($date . '+1 year ' . date_sunrise(strtotime($date), SUNFUNCS_RET_STRING, $lat, $lng, 96, $gmt));
-		$sunrise_nautical = strtotime($date . '+1 year ' . date_sunrise(strtotime($date), SUNFUNCS_RET_STRING, $lat, $lng, 102, $gmt));
-		$sunrise_astronomical = strtotime($date . '+1 year ' . date_sunrise(strtotime($date), SUNFUNCS_RET_STRING, $lat, $lng, 108, $gmt));
-		$sunset_civil = strtotime($date . '+1 year ' . date_sunset(strtotime($date), SUNFUNCS_RET_STRING, $lat, $lng, 96, $gmt));
-		$sunset_nautical = strtotime($date . '+1 year ' . date_sunset(strtotime($date), SUNFUNCS_RET_STRING, $lat, $lng, 102, $gmt));
-		$sunset_astronomical = strtotime($date . '+1 year ' . date_sunset(strtotime($date), SUNFUNCS_RET_STRING, $lat, $lng, 108, $gmt));
-	}
+	$sunrise = $sun_info['sunrise'];
+	$sunset = $sun_info['sunset'];
+
+	$sunrise_civil = $sun_info['civil_twilight_begin'];
+	$sunrise_nautical = $sun_info['nautical_twilight_begin'];
+	$sunrise_astronomical = $sun_info['astronomical_twilight_begin'];
+	$sunset_civil = $sun_info['civil_twilight_end'];
+	$sunset_nautical = $sun_info['nautical_twilight_end'];
+	$sunset_astronomical = $sun_info['astronomical_twilight_end'];
 
 	$length = $sunset-$sunrise;
-	$noon = $sunrise+($length/2);
+	$solar_noon = $sunrise+($length/2);
 
 	$percent = ($length*100)/86400;
 
@@ -185,63 +209,59 @@ while ( strtotime($date) <= strtotime($year-1 . '-12-31') || strtotime($date) ==
 	$minutes = ($seconds/60)%60;
 	$hours = floor($seconds/(60*60));
 
-	$dst = ( date('I', strtotime($date . '+1 year +12 hours')) ) ? 1 : 0;
-
-	$solar_noon = ( $dst ) ? $noon+3600 : $noon;
-
 	$length_percentile = 0;
 	if ( $longest_length-$shortest_length > 0 ){ //Prevent division by 0
 		$length_percentile = round((($length-$shortest_length)*100)/($longest_length-$shortest_length), 1);
 	}
 
-	$emoji_icon = ''; //Default emoji icon
-
 	//Add the weather info to the summary if it matches the date correctly
 	$weather_forecast_summary = ''; //Empty this variable each time
+	$weather_icon = ''; //Default emoji icon.
 	if ( !empty($weather_forecast) ){ //If we have weather data
 		$this_weather_day = 'day' . date('Ymd', strtotime($date . '+1 year '));
 		if ( !empty($weather_forecast[$this_weather_day]) ){ //If we have weather data for this specific day
+			$weather_icon = $weather_forecast[$this_weather_day]['icon'];
+			$weather_forecast_summary = ' ' . $weather_forecast[$this_weather_day]['forecast'] . ' (High: ' . $weather_forecast[$this_weather_day]['high'] . ', Low ' . $weather_forecast[$this_weather_day]['low'] . ').';
 
-			//Determine emoji icon based on forecast summary
-			//https://emojipedia.org/search/?q=weather
-			$today_forecast = strtolower($weather_forecast[$this_weather_day]['forecast']);
-			if ( strpos($today_forecast, 'mostly') !== false || strpos($today_forecast, 'partly') !== false ){
-				$emoji_icon = '⛅';
-			} elseif ( strpos($today_forecast, 'cloudy') !== false || strpos($today_forecast, 'fog') !== false ){
-				$emoji_icon = '☁️';
-			} elseif ( strpos($today_forecast, 'sunny') !== false ){
-				$emoji_icon = '☀️';
-			} elseif ( strpos($today_forecast, 'snow') !== false ){
-				$emoji_icon = '❄️';
-			} elseif ( strpos($today_forecast, 'rain') !== false || strpos($today_forecast, 'shower') !== false ){
-				$emoji_icon = '🌧️';
-			} elseif ( strpos($today_forecast, 'storm') !== false ){
-				$emoji_icon = '⛈️';
+			if ( !empty($weather_forecast[$this_weather_day]['pop']) && $weather_forecast[$this_weather_day]['pop'] != 0 ){
+				$precip_icon = ( $weather_forecast[$this_weather_day]['pop'] >= 90 )? '💦' : '';
+				$weather_forecast_summary .= ' ' . $precip_icon . ' ' . $weather_forecast[$this_weather_day]['pop'] . '% chance of precipitation.';
 			}
 
-			$weather_forecast_summary = ' ' . $weather_forecast[$this_weather_day]['forecast'] . ' (High: ' . $weather_forecast[$this_weather_day]['high'] . ', Low ' . $weather_forecast[$this_weather_day]['low'] . ')';
+			if ( !empty($weather_forecast[$this_weather_day]['wind']) ){
+				$weather_forecast_summary .= ' ⚠️ Windy (' . $weather_forecast[$this_weather_day]['wind'] . ').';
+			}
+
+			if ( !empty($weather_forecast[$this_weather_day]['snow_accumulation']) ){
+				$weather_forecast_summary .= ' ⚠️ ' . $weather_forecast[$this_weather_day]['snow_accumulation'] . ' Snow.';
+			}
 		}
 	}
 
-	$last_sync = ( $date == date('Y-m-d', strtotime('Today -1 Year')) && 1==2 ) ? ' [Last Sync]' : '';
+	//Only show the solar noon time if weather is unavailable (to avoid clutter).
+	$solar_noon_summary = '';
+	if ( empty($weather_forecast_summary) ){
+		$solar_noon_summary = 'Solar noon: ' . date('g:ia', intval($solar_noon)) . '.';
+	}
 
-	if ( $debug == 1 || array_key_exists('debug', $_GET) ){
+	if ( is_debug() ){
 		echo "\r\n------------------\r\n";
 		echo ( $date == date('Y-m-d', strtotime('Today -1 Year')) ) ? "(Today!) " : "";
 		echo "Debug Info\r\n";
 		echo "Last Modified: " . date('l, F j, Y', filemtime(__FILE__)) . "\r\n";
 		echo "Date (-1 Year): " . $date . "\r\n";
-		echo "Timezone: Requested: " . $gmt . ", Server: " . date_default_timezone_get() . "\r\n";
-		echo "Daylight: " . date('l, F j Y, g:ia', strtotime(date('F j Y g:ia', $sunrise) . ' +' . $dst . ' hours')) . ' to ' . date('l, F j Y, g:ia', strtotime(date('F j Y g:ia', $sunset) . ' +' . $dst . ' hours')) . "\r\n";
+		echo "Timezone Used: " . $timezone . "\r\n";
+		echo "Sunrise: " . $sunrise . "\r\n";
+		echo "Sunset: " . $sunset . "\r\n";
+		echo "Daylight: " . date('l, F j Y, g:ia', $sunrise) . ' to ' . date('l, F j Y, g:ia', $sunset) . "\r\n";
 		echo "Length: " . $hours . "h " . $minutes . "m (" . round($percent, 1) . "%) of daylight\r\n";
-		echo ( $dst ) ? "DST?: Yes\r\n" : "DST?: No\r\n";
-		echo "Solar Noon: " . date('g:ia', $solar_noon) . "\r\n";
-		if ( $syracuse ) {
-			echo "Syracuse Detected!\r\n";
-			echo "Civil: " . date('g:ia', strtotime(date('F j Y g:ia', $sunrise_civil) . ' +' . $dst . ' hours')) . ' to ' . date('g:ia', strtotime(date('F j Y g:ia', $sunset_civil) . ' +' . $dst . ' hours')) . " (There is enough natural sunlight that artificial light may not be required to carry out human activities.)\r\n";
-			echo "Nautical: " . date('g:ia', strtotime(date('F j Y g:ia', $sunrise_nautical) . ' +' . $dst . ' hours')) . ' to ' . date('g:ia', strtotime(date('F j Y g:ia', $sunset_nautical) . ' +' . $dst . ' hours')) . " (The point at which the horizon stops being visible at sea)\r\n";
-			echo "Astronomical: " . date('g:ia', strtotime(date('F j Y g:ia', $sunrise_astronomical) . ' +' . $dst . ' hours')) . ' to ' . date('g:ia', strtotime(date('F j Y g:ia', $sunset_astronomical) . ' +' . $dst . ' hours')) . " (The point when Sun stops being a source of any illumination)\r\n";
+		echo "Solar Noon: " . date('g:ia', intval($solar_noon)) . "\r\n";
+		if ( is_syracuse($lat, $lng) ) {
+			echo "Syracuse Detected! This request is eligible for a weather forecast!\r\n";
 		}
+		echo "Civil: " . date('g:ia', $sunrise_civil) . ' to ' . date('g:ia', $sunset_civil) . " (There is enough natural sunlight that artificial light may not be required to carry out human activities.)\r\n";
+		echo "Nautical: " . date('g:ia', $sunrise_nautical) . ' to ' . date('g:ia', $sunset_nautical) . " (The point at which the horizon stops being visible at sea)\r\n";
+		echo "Astronomical: " . date('g:ia', $sunrise_astronomical) . ' to ' . date('g:ia', $sunset_astronomical) . " (The point when Sun stops being a source of any illumination)\r\n";
 		echo "\r\nShortest day this year: " . $shortest_length . "\r\n";
 		echo "Longest day this year: " . $longest_length . "\r\n";
 		echo "This day length: " . $length . "\r\n";
@@ -252,23 +272,25 @@ while ( strtotime($date) <= strtotime($year-1 . '-12-31') || strtotime($date) ==
 	}
 ?>
 BEGIN:VEVENT<?php echo "\r\n"; ?>
-CREATED:<?php echo dateToCal(strtotime($date)) . "\r\n"; ?>
-DTSTART:<?php echo dateToCal($sunrise+$gmt_math) . "\r\n"; ?>
-DTEND:<?php echo dateToCal($sunset+$gmt_math) . "\r\n"; ?>
-DTSTAMP:<?php echo dateToCal(time()) . "\r\n"; ?>
-LAST-MODIFIED:<?php echo dateToCal(filemtime(__FILE__)) . "\r\n"; ?>
+CREATED:<?php echo iso_date_format(strtotime($date)) . "\r\n"; ?>
+DTSTART:<?php echo iso_date_format($sunrise) . "\r\n"; ?>
+DTEND:<?php echo iso_date_format($sunset) . "\r\n"; ?>
+DTSTAMP:<?php echo iso_date_format(time()) . "\r\n"; ?>
+LAST-MODIFIED:<?php echo iso_date_format(filemtime(__FILE__)) . "\r\n"; ?>
 UID:<?php echo md5(uniqid(mt_rand(), true)) . "@gearside.com" . "\r\n"; ?>
-<?php if ( $syracuse ) : ?>
-DESCRIPTION:<?php echo escapeString(
-	"Civil: " . date('g:ia', strtotime(date('F j Y g:ia', $sunrise_civil) . ' +' . $dst . ' hours')) . ' to ' . date('g:ia', strtotime(date('F j Y g:ia', $sunset_civil) . ' +' . $dst . ' hours')) . " (There is enough natural sunlight that artificial light may not be required to carry out human activities.) --- " .
-	"Nautical: " . date('g:ia', strtotime(date('F j Y g:ia', $sunrise_nautical) . ' +' . $dst . ' hours')) . ' to ' . date('g:ia', strtotime(date('F j Y g:ia', $sunset_nautical) . ' +' . $dst . ' hours')) . " (The point at which the horizon stops being visible at sea) --- " .
-	"Astronomical: " . date('g:ia', strtotime(date('F j Y g:ia', $sunrise_astronomical) . ' +' . $dst . ' hours')) . ' to ' . date('g:ia', strtotime(date('F j Y g:ia', $sunset_astronomical) . ' +' . $dst . ' hours')) . " (The point when Sun stops being a source of any illumination) --- " . ' [Last Updated: ' . date('l, F j, Y, g:ia') . '] ' .
+DESCRIPTION:<?php echo escape_string(
+	$global_notice . " \\n\\n" .
+	"Daylight: " . date('g:ia', $sunrise) . ' to ' . date('g:ia', $sunset) . " \\n\\n" .
+	"Length: " . $hours . "h " . $minutes . "m (" . round($percent, 1) . "%) of daylight (" . $length_percentile . " percentile)\\n\\n" .
+	$solar_noon_summary . "\\n\\n" .
+	$weather_forecast_summary . "\\n\\n" .
+	"Civil Twilight: " . date('g:ia', $sunrise_civil) . ' to ' . date('g:ia', $sunset_civil) . "\\n(There is enough natural sunlight that artificial light may not be required to carry out human activities.)\\n\\n" .
+	"Nautical Twilight: " . date('g:ia', $sunrise_nautical) . ' to ' . date('g:ia', $sunset_nautical) . "\\n(The point at which the horizon stops being visible at sea)\\n\\n" .
+	"Astronomical Twilight: " . date('g:ia', $sunrise_astronomical) . ' to ' . date('g:ia', $sunset_astronomical) . "\\n(The point when Sun stops being a source of any illumination)\\n\\n" .
+	'[Last Updated: ' . date('l, F j, Y, g:ia') . '] \\n\\n' .
 	"Calendar by Gearside.com") . "\r\n"; //This is for additional information ?>
-<?php else : ?>
-DESCRIPTION:<?php echo escapeString('Daylight calendar by Gearside.com') . "\r\n"; //This is for additional information ?>
-<?php endif; ?>
-URL;VALUE=URI:<?php echo escapeString('http://gearside.com/calendars/daylight.ics') . "\r\n"; ?>
-SUMMARY:<?php echo $emoji_icon . ' ' . escapeString($hours . 'h ' . $minutes . 'm (' . round($percent, 1) . '%) [' . $length_percentile . ' Percentile]. Solar noon: ' . date('g:ia', $solar_noon) . '. ' . $weather_forecast_summary . $last_sync) . "\r\n"; //Shows up in the title of the event ?>
+URL;VALUE=URI:<?php echo escape_string('http://gearside.com/calendars/daylight.ics') . "\r\n"; ?>
+SUMMARY:<?php echo $weather_icon . ' ' . escape_string($hours . 'h ' . $minutes . 'm (' . round($percent, 1) . '%) [' . $length_percentile . ' Percentile]. ' . $weather_forecast_summary) . "\r\n"; //Shows up in the title of the event ?>
 RRULE:FREQ=YEARLY;COUNT=3<?php echo "\r\n"; ?>
 END:VEVENT<?php echo "\r\n"; ?>
 <?php
