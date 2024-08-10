@@ -139,7 +139,7 @@ function get_weather_emoji($main='', $description='', $high=false){
 		$emoji_icon = '⛅';
 	} elseif ( strpos($forecast, 'cloud') !== false || strpos($forecast, 'fog') !== false ){
 		$emoji_icon = '☁️';
-	} elseif ( strpos($forecast, 'sunny') !== false ){
+	} elseif ( strpos($forecast, 'sunny') !== false || strpos($forecast, 'clear') !== false ){
 		$emoji_icon = '☀️';
 	} elseif ( strpos($forecast, 'snow') !== false ){
 		$emoji_icon = '❄️';
@@ -151,18 +151,19 @@ function get_weather_emoji($main='', $description='', $high=false){
 		$emoji_icon = '🌬️';
 	}
 
-	if ( !empty($high) ){
-		if ( $high >= 90 ){
+	$rounded_high = round($high);
+	if ( !empty($rounded_high) ){
+		if ( $rounded_high >= 90 ){
 			$emoji_icon .= '🥵';
-		} elseif ( $high >= 75 ){
+		} elseif ( $rounded_high >= 75 ){
 			$emoji_icon .= '🔴';
-		} elseif ( $high >= 60 ){
+		} elseif ( $rounded_high >= 60 ){
 			$emoji_icon .= '🟠';
-		} elseif ( $high >= 45 ){
+		} elseif ( $rounded_high >= 45 ){
 			$emoji_icon .= '🟣';
-		} elseif ( $high >= 32 ){
+		} elseif ( $rounded_high >= 32 ){
 			$emoji_icon .= '🔵';
-		} elseif ( $high < 32 ){
+		} elseif ( $rounded_high < 32 ){
 			$emoji_icon .= '🥶';
 		}
 	}
@@ -277,7 +278,7 @@ DTSTART:<?php echo iso_date_format($sunrise) . "\r\n"; ?>
 DTEND:<?php echo iso_date_format($sunset) . "\r\n"; ?>
 DTSTAMP:<?php echo iso_date_format(time()) . "\r\n"; ?>
 LAST-MODIFIED:<?php echo iso_date_format(filemtime(__FILE__)) . "\r\n"; ?>
-UID:<?php echo md5(uniqid(mt_rand(), true)) . "@gearside.com" . "\r\n"; ?>
+UID:<?php echo md5($date . "@gearside.com") . "\r\n"; ?>
 DESCRIPTION:<?php echo escape_string(
 	$global_notice . " \\n\\n" .
 	"Daylight: " . date('g:ia', $sunrise) . ' to ' . date('g:ia', $sunset) . " \\n\\n" .

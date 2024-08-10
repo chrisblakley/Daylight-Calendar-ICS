@@ -14,6 +14,9 @@ $debug = 0; //Enable forced debug mode here
 if ( $debug == 0 && !array_key_exists('debug', $_GET) ){
 	header('Content-type: text/calendar; charset=utf-8');
 	header('Content-Disposition: attachment; filename=gearside_daylight.ics');
+} else {
+	error_reporting(E_ALL); // Report all errors
+	ini_set('display_errors', 1); // Display errors on the screen
 }
 
 function dateToCal($timestamp) {
@@ -170,7 +173,7 @@ DTSTART:<?php echo dateToCal($event['start']+$gmt_math) . "\r\n"; ?>
 DTEND:<?php echo dateToCal($event['end']+$gmt_math) . "\r\n"; ?>
 DTSTAMP:<?php echo dateToCal(time()) . "\r\n"; ?>
 LAST-MODIFIED:<?php echo dateToCal(filemtime(__FILE__)) . "\r\n"; ?>
-UID:<?php echo md5(uniqid(mt_rand(), true)) . "@gearside.com" . "\r\n"; ?>
+UID:<?php echo md5($date . "@gearside.com") . "\r\n"; ?>
 DESCRIPTION:<?php echo escapeString('Sun calendar by Gearside.com') . "\r\n"; //This is for additional information ?>
 URL;VALUE=URI:<?php echo escapeString('http://gearside.com/calendars/sun.ics') . "\r\n"; ?>
 SUMMARY:<?php echo escapeString($event['name'] . $last_sync) . "\r\n"; //Shows up in the title of the event ?>

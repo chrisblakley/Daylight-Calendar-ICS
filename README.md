@@ -6,10 +6,10 @@ Not only will it provide an event each day with the appropriate sunrise and suns
 
 ## Options
 
-- [Find your geo coordinates](http://mygeoposition.com/)
+- [Find your geo coordinates](https://www.latlong.net/)
 - [Find your timezone name](https://www.php.net/manual/en/timezones.php)
 - [Find your GMT offset](http://en.wikipedia.org/wiki/List_of_UTC_time_offsets#mediaviewer/File:World_Time_Zones_Map.png)
-    
+
 ## Instructions
 
 - Upload `daylight.php` and/or `sun.php` to your server (or skip this step and use the one hosted on [gearside.com](https://gearside.com/calendars/daylight.php))
